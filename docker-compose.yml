@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6
+    container_name: fuel_mongodb
+    environment:
+      MONGO_INITDB_DATABASE: fuel_dispensing
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - fuel_network
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: fuel_backend
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      DB_URI: mongodb://mongodb:27017/fuel_dispensing
+      JWT_SECRET: dev_secret_key_change_in_production
+      JWT_REFRESH_SECRET: dev_refresh_secret_change_production
+      CORS_ORIGIN: http://localhost:3000
+      SOCKET_IO_ORIGIN: http://localhost:3000
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongodb
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    networks:
+      - fuel_network
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: fuel_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_BASE_URL: http://localhost:5000/api
+      REACT_APP_WS_URL: http://localhost:5000
+    depends_on:
+      - backend
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    networks:
+      - fuel_network
+    command: npm start
+
+volumes:
+  mongo_data:
+
+networks:
+  fuel_network:
+    driver: bridge
