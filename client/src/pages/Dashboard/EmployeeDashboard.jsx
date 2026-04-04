@@ -1,17 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { useDashboard } from '../../hooks/useDashboard';
-import { Sun, Moon, LogOut, Fuel, DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
+import { Sun, Moon, LogOut, Fuel, DollarSign, TrendingUp, AlertCircle, Database } from 'lucide-react';
 
 export default function EmployeeDashboard() {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const { data, loading, error } = useDashboard('employee');
   const [activeTab, setActiveTab] = useState('overview');
+  const [empTransactions, setEmpTransactions] = useState([]);
+  const [transLoading, setTransLoading] = useState(false);
 
   const handleLogout = () => {
     logout();
+  };
+
+  // Fetch employee transactions when database tab is opened
+  useEffect(() => {
+    if (activeTab === 'database') {
+      fetchEmployeeTransactions();
+    }
+  }, [activeTab]);
+
+  const fetchEmployeeTransactions = async () => {
+    try {
+      setTransLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/employee/transactions`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setEmpTransactions(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+    } finally {
+      setTransLoading(false);
+    }
   };
 
   if (error) {
@@ -67,16 +95,17 @@ export default function EmployeeDashboard() {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-slate-200 dark:border-slate-700">
-          {['overview', 'transactions'].map(tab => (
+          {['overview', 'transactions', 'database'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 font-medium transition capitalize ${
+              className={`px-4 py-2 font-medium transition capitalize flex items-center gap-2 ${
                 activeTab === tab
                   ? 'border-b-2 border-green-600 text-green-600 dark:text-green-400'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
+              {tab === 'database' && <Database size={16} />}
               {tab}
             </button>
           ))}
@@ -181,6 +210,50 @@ export default function EmployeeDashboard() {
                       </tbody>
                     </table>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Database Tab */}
+            {activeTab === 'database' && (
+              <div className="space-y-6">
+                <div className="bg-white dark:bg-slate-800/50 dark:backdrop-blur-xl rounded-xl shadow-lg border border-slate-200 dark:border-slate-700/50 p-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Database size={20} />
+                    My Transactions Database
+                  </h3>
+
+                  {transLoading ? (
+                    <div className="text-center py-12">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-600"></div>
+                      <p className="mt-4 text-slate-600 dark:text-slate-400">Loading transactions...</p>
+                    </div>
+                  ) : empTransactions.length === 0 ? (
+                    <p className="text-slate-600 dark:text-slate-400 text-center py-8">No transactions recorded yet</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="border-b border-slate-200 dark:border-slate-700">
+                          <tr>
+                            <th className="text-left py-3 px-4 font-semibold">Date</th>
+                            <th className="text-left py-3 px-4 font-semibold">Machine</th>
+                            <th className="text-left py-3 px-4 font-semibold">Amount</th>
+                            <th className="text-left py-3 px-4 font-semibold">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {empTransactions.map((tx) => (
+                            <tr key={tx._id} className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                              <td className="py-3 px-4">{new Date(tx.createdAt).toLocaleDateString()}</td>
+                              <td className="py-3 px-4 text-blue-600 dark:text-blue-400">{tx.machineId?.name || 'N/A'}</td>
+                              <td className="py-3 px-4">{tx.litersDispensed?.toFixed(1) || '0'}L</td>
+                              <td className="py-3 px-4"><span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded text-xs">completed</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
