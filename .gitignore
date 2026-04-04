@@ -7,6 +7,7 @@
 # Scripts with credentials
 scripts/
 server/scripts/
+createTestData.js
 
 # Seed data
 *.seed.js
