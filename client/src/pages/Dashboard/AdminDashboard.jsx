@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { useDashboard } from '../../hooks/useDashboard';
-import { Sun, Moon, LogOut, TrendingUp, Fuel, DollarSign, CheckCircle, AlertCircle } from 'lucide-react';
+import { usePendingApprovals } from '../../hooks/usePendingApprovals';
+import { Sun, Moon, LogOut, TrendingUp, Fuel, DollarSign, CheckCircle, AlertCircle, Check, X } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -12,10 +13,49 @@ export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const { data, loading, error } = useDashboard('admin');
+  const { pendingEmployees, loading: approvalsLoading, fetchPendingApprovals, approveEmployee, rejectEmployee } = usePendingApprovals();
   const [activeTab, setActiveTab] = useState('overview');
+  const [approvingId, setApprovingId] = useState(null);
+  const [rejectingId, setRejectingId] = useState(null);
+  const [approvalMessage, setApprovalMessage] = useState(null);
+
+  // Fetch pending approvals when approvals tab is opened
+  useEffect(() => {
+    if (activeTab === 'approvals') {
+      fetchPendingApprovals();
+    }
+  }, [activeTab, fetchPendingApprovals]);
 
   const handleLogout = () => {
     logout();
+  };
+
+  const handleApprove = async (employeeId) => {
+    try {
+      setApprovingId(employeeId);
+      await approveEmployee(employeeId);
+      setApprovalMessage({ type: 'success', text: 'Employee approved successfully!' });
+      setTimeout(() => setApprovalMessage(null), 3000);
+    } catch (err) {
+      setApprovalMessage({ type: 'error', text: err.message });
+      setTimeout(() => setApprovalMessage(null), 3000);
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const handleReject = async (employeeId) => {
+    try {
+      setRejectingId(employeeId);
+      await rejectEmployee(employeeId);
+      setApprovalMessage({ type: 'success', text: 'Employee rejected successfully!' });
+      setTimeout(() => setApprovalMessage(null), 3000);
+    } catch (err) {
+      setApprovalMessage({ type: 'error', text: err.message });
+      setTimeout(() => setApprovalMessage(null), 3000);
+    } finally {
+      setRejectingId(null);
+    }
   };
 
   const COLORS = [
@@ -237,20 +277,66 @@ export default function AdminDashboard() {
             {/* Approvals Tab */}
             {activeTab === 'approvals' && data && (
               <div className="space-y-6">
+                {approvalMessage && (
+                  <div className={`p-4 rounded-lg ${
+                    approvalMessage.type === 'success' 
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' 
+                      : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+                  }`}>
+                    {approvalMessage.text}
+                  </div>
+                )}
+
                 <div className="bg-white dark:bg-slate-800/50 dark:backdrop-blur-xl rounded-xl shadow-lg border border-slate-200 dark:border-slate-700/50 p-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
                     <CheckCircle size={20} />
                     Pending Employee Approvals
                   </h3>
 
-                  {data.pendingEmployees === 0 ? (
-                    <p className="text-slate-600 dark:text-slate-400 text-center py-8">No pending approvals</p>
+                  {approvalsLoading ? (
+                    <div className="text-center py-12">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+                      <p className="mt-4 text-slate-600 dark:text-slate-400">Loading pending approvals...</p>
+                    </div>
+                  ) : pendingEmployees.length === 0 ? (
+                    <p className="text-slate-600 dark:text-slate-400 text-center py-8">✓ No pending approvals - all employees are approved!</p>
                   ) : (
-                    <div className="text-center py-8">
-                      <p className="text-slate-600 dark:text-slate-400">{data.pendingEmployees} employees awaiting approval</p>
-                      <button className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium">
-                        Review Approvals
-                      </button>
+                    <div className="space-y-4">
+                      {pendingEmployees.map((employee) => (
+                        <div 
+                          key={employee._id} 
+                          className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600 flex items-center justify-between"
+                        >
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-slate-900 dark:text-white">
+                              {employee.firstName} {employee.lastName}
+                            </h4>
+                            <p className="text-sm text-slate-600 dark:text-slate-400">{employee.email}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                              Applied: {new Date(employee.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => handleApprove(employee._id)}
+                              disabled={approvingId === employee._id}
+                              className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg transition font-medium flex items-center gap-2"
+                            >
+                              <Check size={16} />
+                              {approvingId === employee._id ? 'Approving...' : 'Approve'}
+                            </button>
+                            <button
+                              onClick={() => handleReject(employee._id)}
+                              disabled={rejectingId === employee._id}
+                              className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg transition font-medium flex items-center gap-2"
+                            >
+                              <X size={16} />
+                              {rejectingId === employee._id ? 'Rejecting...' : 'Reject'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
