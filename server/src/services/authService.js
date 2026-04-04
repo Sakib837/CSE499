@@ -94,8 +94,8 @@ export const authService = {
   },
 
   generateTokens(userId, role) {
-    const accessToken = generateAccessToken(userId);
-    const refreshToken = generateRefreshToken(userId);
+    const accessToken = generateAccessToken(userId, role);
+    const refreshToken = generateRefreshToken(userId, role);
 
     return { accessToken, refreshToken };
   },
