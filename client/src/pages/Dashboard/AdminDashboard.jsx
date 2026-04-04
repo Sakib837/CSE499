@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { useDashboard } from '../../hooks/useDashboard';
-import { Sun, Moon, LogOut, TrendingUp, Users, Fuel, DollarSign, CheckCircle, AlertCircle } from 'lucide-react';
+import { Sun, Moon, LogOut, TrendingUp, Fuel, DollarSign, CheckCircle, AlertCircle } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,

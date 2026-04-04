@@ -3,10 +3,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { useDashboard } from '../../hooks/useDashboard';
 import { Sun, Moon, LogOut, Fuel, DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
-import {
-  LineChart, Line, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-} from 'recharts';
 
 export default function EmployeeDashboard() {
   const { user, logout } = useAuth();
