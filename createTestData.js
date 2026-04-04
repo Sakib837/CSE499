@@ -1,10 +1,17 @@
+import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import User from './server/src/models/User.js';
 import Transaction from './server/src/models/Transaction.js';
 import UserBalance from './server/src/models/UserBalance.js';
 
+dotenv.config({ path: './server/.env' });
+
 try {
-  await mongoose.connect('mongodb+srv://cse499:cse499password@clustercse499.ts5lxtm.mongodb.net/fuel_dispensing?retryWrites=true&w=majority');
+  const dbUri = process.env.DB_URI;
+  if (!dbUri) {
+    throw new Error('DB_URI environment variable is not set. Please check your .env file.');
+  }
+  await mongoose.connect(dbUri);
   console.log('Connected to MongoDB');
 
   // Create test user

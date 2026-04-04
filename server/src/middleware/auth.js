@@ -17,10 +17,11 @@ export const auth = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (err) {
+    // Don't expose raw JWT error message - use generic message
     return res.status(401).json({
       success: false,
       error: ERROR_CODES.INVALID_TOKEN,
-      message: err.message,
+      message: 'Invalid or expired token',
     });
   }
 };
