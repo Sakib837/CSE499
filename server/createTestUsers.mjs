@@ -19,9 +19,11 @@ async function createTestUsers() {
     console.log("✓ Connected to MongoDB");
 
     const testUsers = [
-      { email: "user@example.com", password: "password123", role: "user" },
-      { email: "admin@example.com", password: "admin@123456", role: "admin" },
-      { email: "emp@example.com", password: "password123", role: "employee" },
+      { email: "user@example.com", password: "password123", role: "user", status: "active" },
+      { email: "admin@example.com", password: "admin@123456", role: "admin", status: "active" },
+      { email: "emp@example.com", password: "password123", role: "employee", status: "active" },
+      { email: "emp.pending@example.com", password: "password123", role: "employee", status: "pending" },
+      { email: "emp.pending2@example.com", password: "password123", role: "employee", status: "pending" },
     ];
 
     for (const testUser of testUsers) {
@@ -36,7 +38,7 @@ async function createTestUsers() {
         email: testUser.email,
         hashedPassword,
         role: testUser.role,
-        status: "active",
+        status: testUser.status || "active",
       });
 
       await newUser.save();
