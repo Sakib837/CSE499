@@ -15,6 +15,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 // Routes
 import authRoutes from './routes/auth.js';
 import dashboardRoutes from './routes/dashboard.js';
+import databaseRoutes from './routes/database.js';
 
 dotenv.config();
 
@@ -78,6 +79,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api', databaseRoutes);
 
 // Socket.io Setup
 io.on('connection', (socket) => {

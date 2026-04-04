@@ -3,7 +3,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { useDashboard } from '../../hooks/useDashboard';
 import { usePendingApprovals } from '../../hooks/usePendingApprovals';
-import { Sun, Moon, LogOut, TrendingUp, Fuel, DollarSign, CheckCircle, AlertCircle, Check, X } from 'lucide-react';
+import { useDatabaseManager } from '../../hooks/useDatabaseManager';
+import { Sun, Moon, LogOut, TrendingUp, Fuel, DollarSign, CheckCircle, AlertCircle, Check, X, Database, Trash2 } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -14,10 +15,13 @@ export default function AdminDashboard() {
   const { isDark, toggleTheme } = useTheme();
   const { data, loading, error } = useDashboard('admin');
   const { pendingEmployees, loading: approvalsLoading, fetchPendingApprovals, approveEmployee, rejectEmployee } = usePendingApprovals();
+  const { users, transactions, machines, stations, loading: dbLoading, error: dbError, fetchAllData } = useDatabaseManager();
   const [activeTab, setActiveTab] = useState('overview');
   const [approvingId, setApprovingId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [approvalMessage, setApprovalMessage] = useState(null);
+  const [dbTabOpen, setDbTabOpen] = useState('users');
+  const [deletingId, setDeletingId] = useState(null);
 
   // Fetch pending approvals when approvals tab is opened
   useEffect(() => {
@@ -25,6 +29,13 @@ export default function AdminDashboard() {
       fetchPendingApprovals();
     }
   }, [activeTab, fetchPendingApprovals]);
+
+  // Fetch database data when database tab is opened
+  useEffect(() => {
+    if (activeTab === 'database') {
+      fetchAllData();
+    }
+  }, [activeTab, fetchAllData]);
 
   const handleLogout = () => {
     logout();
@@ -55,6 +66,24 @@ export default function AdminDashboard() {
       setTimeout(() => setApprovalMessage(null), 3000);
     } finally {
       setRejectingId(null);
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    try {
+      setDeletingId(userId);
+      // Call delete endpoint
+      await fetch(`${process.env.REACT_APP_API_BASE_URL}/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      // Refresh the list
+      await fetchAllData();
+    } catch (err) {
+      console.error('Delete error:', err);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -119,16 +148,17 @@ export default function AdminDashboard() {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-slate-200 dark:border-slate-700">
-          {['overview', 'approvals', 'analytics'].map(tab => (
+          {['overview', 'approvals', 'analytics', 'database'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 font-medium transition capitalize ${
+              className={`px-4 py-2 font-medium transition capitalize flex items-center gap-2 ${
                 activeTab === tab
                   ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
+              {tab === 'database' && <Database size={16} />}
               {tab}
             </button>
           ))}
@@ -393,8 +423,166 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
-          </>
-        )}
+
+            {/* Database Tab */}
+            {activeTab === 'database' && (
+              <div className="space-y-6">
+                {/* Database Sub-tabs */}
+                <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700">
+                  {['users', 'transactions', 'machines', 'stations'].map(dbTab => (
+                    <button
+                      key={dbTab}
+                      onClick={() => setDbTabOpen(dbTab)}
+                      className={`px-3 py-2 text-sm font-medium transition capitalize ${
+                        dbTabOpen === dbTab
+                          ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {dbTab}
+                    </button>
+                  ))}
+                </div>
+
+                {dbLoading ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+                    <p className="mt-4 text-slate-600 dark:text-slate-400">Loading database...</p>
+                  </div>
+                ) : dbError ? (
+                  <div className="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 p-4 rounded-lg">
+                    Error: {dbError}
+                  </div>
+                ) : (
+                  <>
+                    {/* Users Database */}
+                    {dbTabOpen === 'users' && (
+                      <div className="bg-white dark:bg-slate-800/50 dark:backdrop-blur-xl rounded-xl shadow-lg border border-slate-200 dark:border-slate-700/50 p-6 overflow-x-auto">
+                        <h3 className="text-lg font-semibold mb-4">Users ({users.length})</h3>
+                        <table className="w-full text-sm">
+                          <thead className="border-b border-slate-200 dark:border-slate-700">
+                            <tr>
+                              <th className="text-left py-2">Email</th>
+                              <th className="text-left py-2">Name</th>
+                              <th className="text-left py-2">Role</th>
+                              <th className="text-left py-2">Status</th>
+                              <th className="text-left py-2">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {users.map(user => (
+                              <tr key={user._id} className="border-b border-slate-100 dark:border-slate-700">
+                                <td className="py-3">{user.email}</td>
+                                <td className="py-3">{user.firstName} {user.lastName}</td>
+                                <td className="py-3"><span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs">{user.role}</span></td>
+                                <td className="py-3"><span className={`px-2 py-1 rounded text-xs ${user.status === 'active' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'}`}>{user.status}</span></td>
+                                <td className="py-3">
+                                  <button
+                                    onClick={() => handleDeleteUser(user._id)}
+                                    disabled={deletingId === user._id}
+                                    className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded disabled:opacity-50"
+                                    title="Delete user"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Transactions Database */}
+                    {dbTabOpen === 'transactions' && (
+                      <div className="bg-white dark:bg-slate-800/50 dark:backdrop-blur-xl rounded-xl shadow-lg border border-slate-200 dark:border-slate-700/50 p-6 overflow-x-auto">
+                        <h3 className="text-lg font-semibold mb-4">Transactions ({transactions.length})</h3>
+                        <table className="w-full text-sm">
+                          <thead className="border-b border-slate-200 dark:border-slate-700">
+                            <tr>
+                              <th className="text-left py-2">Date</th>
+                              <th className="text-left py-2">User</th>
+                              <th className="text-left py-2">Amount</th>
+                              <th className="text-left py-2">Liters</th>
+                              <th className="text-left py-2">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {transactions.slice(0, 20).map(tx => (
+                              <tr key={tx._id} className="border-b border-slate-100 dark:border-slate-700">
+                                <td className="py-3">{new Date(tx.createdAt).toLocaleDateString()}</td>
+                                <td className="py-3">{tx.userId?.email || 'N/A'}</td>
+                                <td className="py-3">${tx.totalAmount?.toFixed(2) || '0'}</td>
+                                <td className="py-3">{tx.litersDispensed?.toFixed(1) || '0'}L</td>
+                                <td className="py-3"><span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded text-xs">completed</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Machines Database */}
+                    {dbTabOpen === 'machines' && (
+                      <div className="bg-white dark:bg-slate-800/50 dark:backdrop-blur-xl rounded-xl shadow-lg border border-slate-200 dark:border-slate-700/50 p-6 overflow-x-auto">
+                        <h3 className="text-lg font-semibold mb-4">Machines ({machines.length})</h3>
+                        {machines.length === 0 ? (
+                          <p className="text-slate-600 dark:text-slate-400">No machines registered yet</p>
+                        ) : (
+                          <table className="w-full text-sm">
+                            <thead className="border-b border-slate-200 dark:border-slate-700">
+                              <tr>
+                                <th className="text-left py-2">Name</th>
+                                <th className="text-left py-2">Station</th>
+                                <th className="text-left py-2">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {machines.map(machine => (
+                                <tr key={machine._id} className="border-b border-slate-100 dark:border-slate-700">
+                                  <td className="py-3">{machine.name || 'N/A'}</td>
+                                  <td className="py-3">{machine.stationId?.name || 'N/A'}</td>
+                                  <td className="py-3"><span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded text-xs">online</span></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Stations Database */}
+                    {dbTabOpen === 'stations' && (
+                      <div className="bg-white dark:bg-slate-800/50 dark:backdrop-blur-xl rounded-xl shadow-lg border border-slate-200 dark:border-slate-700/50 p-6 overflow-x-auto">
+                        <h3 className="text-lg font-semibold mb-4">Stations ({stations.length})</h3>
+                        {stations.length === 0 ? (
+                          <p className="text-slate-600 dark:text-slate-400">No stations registered yet</p>
+                        ) : (
+                          <table className="w-full text-sm">
+                            <thead className="border-b border-slate-200 dark:border-slate-700">
+                              <tr>
+                                <th className="text-left py-2">Name</th>
+                                <th className="text-left py-2">Location</th>
+                                <th className="text-left py-2">Capacity</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {stations.map(station => (
+                                <tr key={station._id} className="border-b border-slate-100 dark:border-slate-700">
+                                  <td className="py-3">{station.name || 'N/A'}</td>
+                                  <td className="py-3">{station.location || 'N/A'}</td>
+                                  <td className="py-3">{station.capacity || '0'} L</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
       </main>
     </div>
   );
